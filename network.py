@@ -8,11 +8,11 @@ DATA_TYPE = np.float32
 
 
 def dataset_get_sin():
-    NUM = 100
+    NUM = 1000
     RATIO = 0.8
     SPLIT = int(NUM * RATIO)
     data = np.zeros((NUM, 2), DATA_TYPE)
-    data[:, 0] = np.linspace(0.0, 4.0 * np.pi, num=NUM)  # inputs
+    data[:, 0] = np.linspace(0.0, 2 * np.pi, num=NUM)  # inputs
     data[:, 1] = np.sin(data[:, 0])  # outputs
     npr.shuffle(data)
     training, test = data[:SPLIT, :], data[SPLIT:, :]
@@ -24,7 +24,7 @@ def dataset_get_linear():
     RATIO = 0.8
     SPLIT = int(NUM * RATIO)
     data = np.zeros((NUM, 2), DATA_TYPE)
-    data[:, 0] = np.linspace(0.0, 4.0 * np.pi, num=NUM)  # inputs
+    data[:, 0] = np.linspace(0.0, 2 * np.pi, num=NUM)  # inputs
     data[:, 1] = 2 * data[:, 0]  # outputs
     npr.shuffle(data)
     training, test = data[:SPLIT, :], data[SPLIT:, :]
@@ -32,14 +32,14 @@ def dataset_get_linear():
 
 
 def relu(x):
-    """Apply a rectified linear until to x"""
-    return np.maximum(x, 0, x)
+    """Apply a rectified linear unit to x"""
+    return np.maximum(0, x)
 
 
 def d_relu(x):
     res = x
-    res[res < 0] = 0
     res[res >= 0] = 1
+    res[res < 0] = 0
     return res
 
 
@@ -59,7 +59,7 @@ def L(x, y):
 
 class Model(object):
 
-    def __init__(self, layer_size, data_type):
+    def __init__(self, layer_size, h, dh, data_type):
         self.w1 = npr.rand(layer_size).astype(data_type)
         self.b1 = npr.rand(layer_size).astype(data_type)
         self.w2 = npr.rand(1, layer_size).astype(data_type)
@@ -70,70 +70,60 @@ class Model(object):
         self.b1 /= np.sum(self.b1)
         self.b2 /= np.sum(self.b2)
 
-    def h(self, vec):
-        return relu(vec)
+        self.h = h
+        self.dh = dh
 
-    def dh(self, vec):
-        return d_relu(vec)
+    def z1(self, x):
 
-    def Z1(self, x):
-        """Apply the first linear layer to an input x"""
         return self.w1 * x + self.b1
 
-    def A(self, x):
-        """Compute A for an input x"""
-        return self.h(self.Z1(x))
+    def a(self, x):
 
-    def Z2(self, x):
-        """Compute Z2 for an input x"""
-        return self.w2.dot(self.A(x)) + self.b2
+        return self.h(self.z1(x))
 
-    def forward(self, x):
-        """Evaluate the model on an input x"""
-        return self.Z2(x)
+    def f(self, x):
+
+        return self.w2.dot(self.a(x)) + self.b2
 
     def dLdf(self, x, y):
-        """Compute dL/df for an input x"""
-        return 2.0 * (self.forward(x) - y)
+        return 2.0 * (self.f(x) - y)
 
     def dfdb2(self):
-        return 1.0
+        return np.array([1.0])
 
     def dLdb2(self, x, y):
-        """Evaluate dL/db2 for an input x and expected output y"""
         return self.dLdf(x, y) * self.dfdb2()
 
     def dfdw2(self, x):
-        """Evaluate df/dw2 using an input sample x"""
-        return self.A(x)
+        return np.sum(self.a(x))
 
-    def dfda(self):
-        return np.sum(self.w2)
+    def dfda(self):  # how f changes with ith element of a
+        return self.w2
 
-    def dadz(self, x):
+    def dadz1(self, x):  # how a[i] changes with z1[i]
         """Compute da/dz1 for an input x"""
-        return self.dh(self.Z1(x))
+        return self.dh(self.z1(x))
 
-    def dLdz(self, x, y):
+    def dLdz1(self, x, y):
         """Compute dL/dz1 for an input x and expected output y"""
-        return self.dLdf(x, y) * self.dfda() * self.dadz(x)
+        return self.dLdf(x, y) * np.sum(self.dfda() * self.dadz1(x))
 
-    def dzdw1(self, x):
+    def dz1dw1(self, x):
         return x
 
     def dLdw1(self, x, y):
         """Compute dL/dw1 for an input x and expected output y"""
-        return self.dLdz(x, y) * self.dzdw1(x)
+        return self.dLdf(x, y) * np.sum(self.dfda() * self.dadz1(x) * self.dz1dw1(x))
 
     def dLdw2(self, x, y):
         """Compute dL/dw2 for an input x and expected output y"""
         return self.dLdf(x, y) * self.dfdw2(x)
 
-    def dzdb1(self):
-        return 1.0
+    def dz1db1(self):
+        return np.ones(self.b1.shape)
 
     def dLdb1(self, x, y):
-        return self.dLdz(x, y) * self.dzdb1()
+        return self.dLdf(x, y) * np.sum(self.dfda() * self.dadz1(x) * self.dz1db1())
 
     def backward(self, training_samples, ETA):
         """Do backpropagation with stochastic gradient descent on the model using training_samples"""
@@ -156,19 +146,20 @@ def evaluate(model, samples):
     """Report the loss function over the data"""
     loss_acc = 0.0
     for sample in samples:
-        guess = model.forward(sample[0])
+        guess = model.f(sample[0])
         actual = sample[1]
         loss_acc += L(guess, actual)
     return loss_acc / len(samples)
 
-# TRAIN_DATA, TEST_DATA = dataset_get_sin()
-TRAIN_DATA, TEST_DATA = dataset_get_linear()
+TRAIN_DATA, TEST_DATA = dataset_get_sin()
+# TRAIN_DATA, TEST_DATA = dataset_get_linear()
 
-MODEL = Model(10, DATA_TYPE)
+MODEL = Model(6, sigmoid, d_sigmoid, DATA_TYPE)
+# MODEL = Model(10, relu, d_relu, DATA_TYPE)
 
 # Train the model with some training data
-TRAINING_ITERS = 100
-LEARNING_RATE = 0.001
+TRAINING_ITERS = 500
+LEARNING_RATE = 0.006
 TRAINING_SUBSET_SIZE = len(TRAIN_DATA)
 
 print TRAINING_SUBSET_SIZE
@@ -199,8 +190,8 @@ for training_iter in range(TRAINING_ITERS):
     else:
         print ""
 
-TEST_OUTPUT = np.vectorize(MODEL.forward)(TEST_DATA[:, 0])
-TRAIN_OUTPUT = np.vectorize(MODEL.forward)(TRAIN_DATA[:, 0])
+TEST_OUTPUT = np.vectorize(MODEL.f)(TEST_DATA[:, 0])
+TRAIN_OUTPUT = np.vectorize(MODEL.f)(TRAIN_DATA[:, 0])
 
 scatter_train, = plt.plot(
     TRAIN_DATA[:, 0], TRAIN_DATA[:, 1], 'ro', label="Training data")
