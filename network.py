@@ -74,6 +74,11 @@ class Model(object):
         self.h = h
         self.dh = dh
 
+        self.w1_v = np.zeros(self.w1.shape)
+        self.w2_v = np.zeros(self.w2.shape)
+        self.b1_v = np.zeros(self.b1.shape)
+        self.b2_v = np.zeros(self.b2.shape)
+
     def z1(self, x):
         return self.w1 * x + self.b1
 
@@ -136,7 +141,6 @@ class Model(object):
             self.b1 -= ETA * b1_grad
             self.w2 -= ETA * w2_grad
             self.w1 -= ETA * w1_grad
-
         return
 
     def backward_minibatch(self, batch, ETA):
@@ -158,8 +162,25 @@ class Model(object):
         self.b1 -= ETA * b1_grad / len(batch)
         self.w2 -= ETA * w2_grad / len(batch)
         self.w1 -= ETA * w1_grad / len(batch)
-
         return
+
+    def SGDm(self, training_samples, ETA):
+        alpha = 0.99
+        for sample in training_samples:
+            sample_input = sample[0]
+            sample_output = sample[1]
+
+            self.b2_v = alpha * self.b2_v + ETA * self.dLdb2(sample_input, sample_output)
+            self.w2_v = alpha * self.w2_v + ETA * self.dLdw2(sample_input, sample_output)
+            self.b1_v = alpha * self.b1_v + ETA * self.dLdb1(sample_input, sample_output)
+            self.w1_v = alpha * self.w1_v + ETA * self.dLdw1(sample_input, sample_output)
+            self.b2 -= self.b2_v
+            self.b1 -= self.b1_v
+            self.w2 -= self.w2_v
+            self.w1 -= self.w1_v
+        return
+
+
 
 
 def evaluate(model, samples):
@@ -179,7 +200,7 @@ MODEL = Model(10, sigmoid, d_sigmoid, DATA_TYPE)
 
 # Train the model with some training data
 TRAINING_ITERS = 5000
-LEARNING_RATE = 0.002
+LEARNING_RATE = 0.0005
 TRAINING_SUBSET_SIZE = len(TRAIN_DATA)
 
 print TRAINING_SUBSET_SIZE
@@ -196,8 +217,11 @@ for training_iter in range(TRAINING_ITERS):
     # Apply backpropagation
     # MODEL.backward(training_subset, LEARNING_RATE)
 
+    # Apply backpropagation
+    # MODEL.SGDm(training_subset, LEARNING_RATE)
+
     # Apply backprop with minibatch
-    BATCH_SIZE = 4
+    BATCH_SIZE = 1
     for i in range(0, len(training_subset), BATCH_SIZE):
         batch = training_subset[i:min(i+BATCH_SIZE, len(training_subset))]
         # print batch
