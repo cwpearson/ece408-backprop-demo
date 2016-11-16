@@ -13,7 +13,7 @@ def dataset_get_sin():
     RATIO = 0.5
     SPLIT = int(NUM * RATIO)
     data = np.zeros((NUM, 2), DATA_TYPE)
-    data[:, 0] = np.linspace(0.0, 2 * np.pi, num=NUM)  # inputs
+    data[:, 0] = np.linspace(0.0, 4 * np.pi, num=NUM)  # inputs
     data[:, 1] = np.sin(data[:, 0])  # outputs
     npr.shuffle(data)
     training, test = data[:SPLIT, :], data[SPLIT:, :]
@@ -61,33 +61,30 @@ def L(x, y):
 class Model(object):
 
     def __init__(self, layer_size, h, dh, data_type):
-        self.w1 = npr.uniform(-1, 1, layer_size)
-        self.b1 = npr.uniform(-1, 1, layer_size)
-        self.w2 = npr.uniform(-1, 1, (1, layer_size))
-        self.b2 = npr.uniform(-1, 1, 1)
+        self.w1 = npr.uniform(0, 1, layer_size)
+        self.b1 = npr.uniform(0, 1, layer_size)
+        self.w2 = npr.uniform(0, 1, (1, layer_size))
+        self.b2 = npr.uniform(0, 1, 1)
 
-        self.w1 = preprocessing.scale(self.w1)
-        self.w2 = preprocessing.scale(self.w2)
-        self.b1 = preprocessing.scale(self.b1)
-        self.b2 = preprocessing.scale(self.b2)
+        # self.w1 = preprocessing.scale(self.w1)
+        # self.w2 = preprocessing.scale(self.w2)
+        # self.b1 = preprocessing.scale(self.b1)
+        # self.b2 = preprocessing.scale(self.b2)
 
         self.h = h
         self.dh = dh
 
     def z1(self, x):
-
         return self.w1 * x + self.b1
 
     def a(self, x):
-
         return self.h(self.z1(x))
 
     def f(self, x):
-
         return self.w2.dot(self.a(x)) + self.b2
 
     def dLdf(self, x, y):
-        return 2.0 * (self.f(x) - y)
+        return -2.0 * (y - self.f(x))
 
     def dfdb2(self):
         return np.array([1.0])
@@ -181,8 +178,8 @@ MODEL = Model(10, sigmoid, d_sigmoid, DATA_TYPE)
 # MODEL = Model(10, relu, d_relu, DATA_TYPE)
 
 # Train the model with some training data
-TRAINING_ITERS = 1000
-LEARNING_RATE = 0.005
+TRAINING_ITERS = 5000
+LEARNING_RATE = 0.002
 TRAINING_SUBSET_SIZE = len(TRAIN_DATA)
 
 print TRAINING_SUBSET_SIZE
@@ -200,7 +197,7 @@ for training_iter in range(TRAINING_ITERS):
     # MODEL.backward(training_subset, LEARNING_RATE)
 
     # Apply backprop with minibatch
-    BATCH_SIZE = 2
+    BATCH_SIZE = 4
     for i in range(0, len(training_subset), BATCH_SIZE):
         batch = training_subset[i:min(i+BATCH_SIZE, len(training_subset))]
         # print batch
