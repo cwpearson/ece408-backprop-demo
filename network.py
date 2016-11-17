@@ -1,3 +1,4 @@
+import copy
 import numpy as np
 import numpy.random as npr
 import random
@@ -16,7 +17,7 @@ def dataset_get_sin():
     data[:, 0] = np.linspace(0.0, 4 * np.pi, num=NUM)  # inputs
     data[:, 1] = np.sin(data[:, 0])  # outputs
     npr.shuffle(data)
-    training, test = data[:SPLIT, :], data[SPLIT:, :]
+    training, test = data[:SPLIT,:], data[SPLIT:,:]
     return training, test
 
 
@@ -28,7 +29,7 @@ def dataset_get_linear():
     data[:, 0] = np.linspace(0.0, 2 * np.pi, num=NUM)  # inputs
     data[:, 1] = 2 * data[:, 0]  # outputs
     npr.shuffle(data)
-    training, test = data[:SPLIT, :], data[SPLIT:, :]
+    training, test = data[:SPLIT,:], data[SPLIT:,:]
     return training, test
 
 
@@ -79,6 +80,10 @@ class Model(object):
         self.b1_v = np.zeros(self.b1.shape)
         self.b2_v = np.zeros(self.b2.shape)
 
+    def L(self, x, y):
+        f_x = self.f(x)
+        return 0.5 * (f_x - y) * (f_x - y)
+
     def z1(self, x):
         return self.w1 * x + self.b1
 
@@ -92,8 +97,7 @@ class Model(object):
         return self.f(x) - y
 
     def dLdb2(self, x, y):
-        return self.dLdf(x, y) 
-
+        return self.dLdf(x, y)
 
     def dfda(self):  # how f changes with ith element of a
         return self.w2
@@ -112,7 +116,7 @@ class Model(object):
 
     def dLdw2(self, x, y):
         """Compute dL/dw2 for an input x and expected output y"""
-        return self.dLdf(x, y) * self.a(x) #df/dw2
+        return self.dLdf(x, y) * self.a(x)  # df/dw2
 
     def dLdb1(self, x, y):
         return self.dLdf(x, y) * np.dot(self.dfda(), self.dadz1(x))
@@ -142,6 +146,8 @@ class Model(object):
             sample_input = sample[0]
             sample_output = sample[1]
 
+            self.grad_checker(10e-4, sample_input, sample_output)
+
             b2_grad += self.dLdb2(sample_input, sample_output)
             w2_grad += self.dLdw2(sample_input, sample_output)
             b1_grad += self.dLdb1(sample_input, sample_output)
@@ -159,27 +165,63 @@ class Model(object):
             sample_input = sample[0]
             sample_output = sample[1]
 
-            self.b2_v = alpha * self.b2_v + ETA * self.dLdb2(sample_input, sample_output)
-            self.w2_v = alpha * self.w2_v + ETA * self.dLdw2(sample_input, sample_output)
-            self.b1_v = alpha * self.b1_v + ETA * self.dLdb1(sample_input, sample_output)
-            self.w1_v = alpha * self.w1_v + ETA * self.dLdw1(sample_input, sample_output)
+            self.b2_v = alpha * self.b2_v + ETA * \
+                self.dLdb2(sample_input, sample_output)
+            self.w2_v = alpha * self.w2_v + ETA * \
+                self.dLdw2(sample_input, sample_output)
+            self.b1_v = alpha * self.b1_v + ETA * \
+                self.dLdb1(sample_input, sample_output)
+            self.w1_v = alpha * self.w1_v + ETA * \
+                self.dLdw1(sample_input, sample_output)
             self.b2 -= self.b2_v
             self.b1 -= self.b1_v
             self.w2 -= self.w2_v
             self.w1 -= self.w1_v
         return
 
+    def grad_checker(self, eps, x, y):
+        # Check b2
+        # inc_model = copy.deepcopy(self)
+        # dec_model = copy.deepcopy(self)
+        # inc_model.b2 = self.b2 + eps
+        # dec_model.b2 = self.b2 - eps
+        # grad_estimate = (inc_model.L(x, y) - dec_model.L(x, y)) / (2 * eps)
+        # grad_actual = self.dLdb2(x, y)
+        # print "b2:", np.linalg.norm(grad_estimate - grad_actual)
 
+        # Check b1
+        # inc_model = copy.deepcopy(self)
+        # dec_model = copy.deepcopy(self)
+        # inc_model.b1 = self.b1 + eps
+        # dec_model.b1 = self.b1 - eps
+        # grad_estimate = (inc_model.L(x, y) - dec_model.L(x, y)) / (2 * eps)
+        # grad_actual = self.dLdb1(x, y)
+        # print "b1:", np.linalg.norm(grad_estimate - grad_actual)
 
+        # Check w2
+        inc_model = copy.deepcopy(self)
+        dec_model = copy.deepcopy(self)
+        inc_model.w2 = self.w2 + eps
+        dec_model.w2 = self.w2 - eps
+        grad_estimate = (inc_model.L(x, y) - dec_model.L(x, y)) / (2 * eps)
+        grad_actual = self.dLdw2(x, y)
+        print "w2:", np.linalg.norm(grad_estimate - grad_actual)
+
+        # Check w1
+        # inc_model = copy.deepcopy(self)
+        # dec_model = copy.deepcopy(self)
+        # inc_model.w1 = self.w1 + eps
+        # dec_model.w1 = self.w1 - eps
+        # grad_estimate = (inc_model.L(x, y) - dec_model.L(x, y)) / (2 * eps)
+        # grad_actual = self.dLdw1(x, y)
+        # print "w1:", np.linalg.norm(grad_estimate - grad_actual)
 
 def evaluate(model, samples):
-    """Report the loss function over the data"""
-    loss_acc = 0.0
+    """Report the average loss function over the data"""
+    cost_acc = 0.0
     for sample in samples:
-        guess = model.f(sample[0])
-        actual = sample[1]
-        loss_acc += L(guess, actual)
-    return loss_acc / len(samples)
+        cost_acc += model.L(sample[0], sample[1])
+    return cost_acc / len(samples)
 
 TRAIN_DATA, TEST_DATA = dataset_get_sin()
 # TRAIN_DATA, TEST_DATA = dataset_get_linear()
@@ -212,7 +254,7 @@ for training_iter in range(TRAINING_ITERS):
     # Apply backprop with minibatch
     BATCH_SIZE = 1
     for i in range(0, len(training_subset), BATCH_SIZE):
-        batch = training_subset[i:min(i+BATCH_SIZE, len(training_subset))]
+        batch = training_subset[i:min(i + BATCH_SIZE, len(training_subset))]
         # print batch
         MODEL.backward_minibatch(batch, LEARNING_RATE)
 
