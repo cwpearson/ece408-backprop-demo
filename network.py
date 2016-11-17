@@ -11,25 +11,25 @@ DATA_TYPE = np.float32
 
 def dataset_get_sin():
     NUM = 1000
-    RATIO = 0.5
+    RATIO = 0.7
     SPLIT = int(NUM * RATIO)
     data = np.zeros((NUM, 2), DATA_TYPE)
-    data[:, 0] = np.linspace(0.0, 4 * np.pi, num=NUM)  # inputs
+    data[:, 0] = np.linspace(0.0, 2 * np.pi, num=NUM)  # inputs
     data[:, 1] = np.sin(data[:, 0])  # outputs
     npr.shuffle(data)
-    training, test = data[:SPLIT,:], data[SPLIT:,:]
+    training, test = data[:SPLIT, :], data[SPLIT:, :]
     return training, test
 
 
 def dataset_get_linear():
-    NUM = 100
+    NUM = 1000
     RATIO = 0.8
     SPLIT = int(NUM * RATIO)
     data = np.zeros((NUM, 2), DATA_TYPE)
     data[:, 0] = np.linspace(0.0, 2 * np.pi, num=NUM)  # inputs
     data[:, 1] = 2 * data[:, 0]  # outputs
     npr.shuffle(data)
-    training, test = data[:SPLIT,:], data[SPLIT:,:]
+    training, test = data[:SPLIT, :], data[SPLIT:, :]
     return training, test
 
 
@@ -63,8 +63,8 @@ class Model(object):
 
     def __init__(self, layer_size, h, dh, data_type):
         self.w1 = npr.uniform(0, 1, layer_size)
-        self.b1 = npr.uniform(0, 1, layer_size)
         self.w2 = npr.uniform(0, 1, (1, layer_size))
+        self.b1 = npr.uniform(0, 1, layer_size)
         self.b2 = npr.uniform(0, 1, 1)
 
         # self.w1 = preprocessing.scale(self.w1)
@@ -116,7 +116,7 @@ class Model(object):
 
     def dLdw2(self, x, y):
         """Compute dL/dw2 for an input x and expected output y"""
-        return self.dLdf(x, y) * self.a(x)  # df/dw2
+        return self.dLdf(x, y) * np.sum(self.a(x))  # df/dw2
 
     def dLdb1(self, x, y):
         return self.dLdf(x, y) * np.dot(self.dfda(), self.dadz1(x))
@@ -146,7 +146,7 @@ class Model(object):
             sample_input = sample[0]
             sample_output = sample[1]
 
-            self.grad_checker(10e-4, sample_input, sample_output)
+            # self.grad_checker(10e-4, sample_input, sample_output)
 
             b2_grad += self.dLdb2(sample_input, sample_output)
             w2_grad += self.dLdw2(sample_input, sample_output)
@@ -181,22 +181,24 @@ class Model(object):
 
     def grad_checker(self, eps, x, y):
         # Check b2
-        # inc_model = copy.deepcopy(self)
-        # dec_model = copy.deepcopy(self)
-        # inc_model.b2 = self.b2 + eps
-        # dec_model.b2 = self.b2 - eps
-        # grad_estimate = (inc_model.L(x, y) - dec_model.L(x, y)) / (2 * eps)
-        # grad_actual = self.dLdb2(x, y)
-        # print "b2:", np.linalg.norm(grad_estimate - grad_actual)
+        inc_model = copy.deepcopy(self)
+        dec_model = copy.deepcopy(self)
+        inc_model.b2 = self.b2 + eps
+        dec_model.b2 = self.b2 - eps
+        grad_estimate = (inc_model.L(x, y) - dec_model.L(x, y)) / (2 * eps)
+        grad_actual = self.dLdb2(x, y)
+        if np.linalg.norm(grad_estimate - grad_actual) > 10e-5:
+            print "b2"
 
         # Check b1
-        # inc_model = copy.deepcopy(self)
-        # dec_model = copy.deepcopy(self)
-        # inc_model.b1 = self.b1 + eps
-        # dec_model.b1 = self.b1 - eps
-        # grad_estimate = (inc_model.L(x, y) - dec_model.L(x, y)) / (2 * eps)
-        # grad_actual = self.dLdb1(x, y)
-        # print "b1:", np.linalg.norm(grad_estimate - grad_actual)
+        inc_model = copy.deepcopy(self)
+        dec_model = copy.deepcopy(self)
+        inc_model.b1 = self.b1 + eps
+        dec_model.b1 = self.b1 - eps
+        grad_estimate = (inc_model.L(x, y) - dec_model.L(x, y)) / (2 * eps)
+        grad_actual = self.dLdb1(x, y)
+        if np.linalg.norm(grad_estimate - grad_actual) > 10e-5:
+            print "b1"
 
         # Check w2
         inc_model = copy.deepcopy(self)
@@ -205,16 +207,19 @@ class Model(object):
         dec_model.w2 = self.w2 - eps
         grad_estimate = (inc_model.L(x, y) - dec_model.L(x, y)) / (2 * eps)
         grad_actual = self.dLdw2(x, y)
-        print "w2:", np.linalg.norm(grad_estimate - grad_actual)
+        if np.linalg.norm(grad_estimate - grad_actual) > 10e-5:
+            print "w2"
 
         # Check w1
-        # inc_model = copy.deepcopy(self)
-        # dec_model = copy.deepcopy(self)
-        # inc_model.w1 = self.w1 + eps
-        # dec_model.w1 = self.w1 - eps
-        # grad_estimate = (inc_model.L(x, y) - dec_model.L(x, y)) / (2 * eps)
-        # grad_actual = self.dLdw1(x, y)
-        # print "w1:", np.linalg.norm(grad_estimate - grad_actual)
+        inc_model = copy.deepcopy(self)
+        dec_model = copy.deepcopy(self)
+        inc_model.w1 = self.w1 + eps
+        dec_model.w1 = self.w1 - eps
+        grad_estimate = (inc_model.L(x, y) - dec_model.L(x, y)) / (2 * eps)
+        grad_actual = self.dLdw1(x, y)
+        if np.linalg.norm(grad_estimate - grad_actual) > 10e-5:
+            print "w1"
+
 
 def evaluate(model, samples):
     """Report the average loss function over the data"""
@@ -226,19 +231,19 @@ def evaluate(model, samples):
 TRAIN_DATA, TEST_DATA = dataset_get_sin()
 # TRAIN_DATA, TEST_DATA = dataset_get_linear()
 
-MODEL = Model(6, sigmoid, d_sigmoid, DATA_TYPE)
-# MODEL = Model(10, relu, d_relu, DATA_TYPE)
+MODEL = Model(10, sigmoid, d_sigmoid, DATA_TYPE)
+# MODEL = Model(20, relu, d_relu, DATA_TYPE)
 
 # Train the model with some training data
-TRAINING_ITERS = 5000
-LEARNING_RATE = 0.005
+MAX_EPOCHS = 2000
 TRAINING_SUBSET_SIZE = len(TRAIN_DATA)
-PATIENCE = 100
+PATIENCE = 50
 
 print TRAINING_SUBSET_SIZE
 
 best_rate = np.inf
-for training_iter in range(TRAINING_ITERS):
+best_model = None
+for epoch in range(MAX_EPOCHS):
     # Create a training sample
     training_subset_indices = npr.choice(
         range(len(TRAIN_DATA)), size=TRAINING_SUBSET_SIZE, replace=False)
@@ -249,25 +254,26 @@ for training_iter in range(TRAINING_ITERS):
     # MODEL.backward(training_subset, LEARNING_RATE)
 
     # Apply backpropagation
-    # MODEL.SGDm(training_subset, LEARNING_RATE)
+    # MODEL.SGDm(training_subset, 0.00004)
 
     # Apply backprop with minibatch
-    BATCH_SIZE = 1
+    BATCH_SIZE = 4
+    LEARNING_RATE = 0.005
     for i in range(0, len(training_subset), BATCH_SIZE):
         batch = training_subset[i:min(i + BATCH_SIZE, len(training_subset))]
-        # print batch
         MODEL.backward_minibatch(batch, LEARNING_RATE)
 
     # Evaluate accuracy against training data
     training_rate = evaluate(MODEL, training_subset)
-    test_rate = evaluate(MODEL, TEST_DATA)
+    # test_rate = evaluate(MODEL, TEST_DATA)
 
-    print training_iter, "cost:", training_rate, test_rate,
+    print epoch, "training:", training_rate,
 
     # If it's the best one so far, store it
     if training_rate < best_rate:
         print "(new best)"
         best_rate = training_rate
+        best_model = copy.deepcopy(MODEL)
         patience = PATIENCE
     else:
         patience -= 1
@@ -277,11 +283,14 @@ for training_iter in range(TRAINING_ITERS):
         print PATIENCE, "iterations without improvement"
         break
 
-TEST_OUTPUT = np.vectorize(MODEL.f)(TEST_DATA[:, 0])
-TRAIN_OUTPUT = np.vectorize(MODEL.f)(TRAIN_DATA[:, 0])
+test_rate = evaluate(MODEL, TEST_DATA)
+print "Test cost:", test_rate
+
+TEST_OUTPUT = np.vectorize(best_model.f)(TEST_DATA[:, 0])
+TRAIN_OUTPUT = np.vectorize(best_model.f)(TRAIN_DATA[:, 0])
 
 scatter_train, = plt.plot(
-    TRAIN_DATA[:, 0], TRAIN_DATA[:, 1], 'ro', label="Real Data")
+    TRAIN_DATA[:, 0], TRAIN_DATA[:, 1], 'ro', markersize=2, label="Real Data")
 scatter_train_out, = plt.plot(
     TRAIN_DATA[:, 0], TRAIN_OUTPUT, 'go', label="Network output on training data")
 scatter_test_out, = plt.plot(
