@@ -10,11 +10,11 @@ DATA_TYPE = np.float32
 
 
 def dataset_get_sin():
-    NUM = 1000
+    NUM = 200
     RATIO = 0.7
     SPLIT = int(NUM * RATIO)
     data = np.zeros((NUM, 2), DATA_TYPE)
-    data[:, 0] = np.linspace(0.0, 2 * np.pi, num=NUM)  # inputs
+    data[:, 0] = np.linspace(0.0, 1 * np.pi, num=NUM)  # inputs
     data[:, 1] = np.sin(data[:, 0])  # outputs
     npr.shuffle(data)
     training, test = data[:SPLIT, :], data[SPLIT:, :]
@@ -231,13 +231,13 @@ def evaluate(model, samples):
 TRAIN_DATA, TEST_DATA = dataset_get_sin()
 # TRAIN_DATA, TEST_DATA = dataset_get_linear()
 
-MODEL = Model(10, sigmoid, d_sigmoid, DATA_TYPE)
+MODEL = Model(8, sigmoid, d_sigmoid, DATA_TYPE)
 # MODEL = Model(20, relu, d_relu, DATA_TYPE)
 
 # Train the model with some training data
 MAX_EPOCHS = 2000
 TRAINING_SUBSET_SIZE = len(TRAIN_DATA)
-PATIENCE = 50
+PATIENCE = 200
 
 print TRAINING_SUBSET_SIZE
 
@@ -258,7 +258,7 @@ for epoch in range(MAX_EPOCHS):
 
     # Apply backprop with minibatch
     BATCH_SIZE = 4
-    LEARNING_RATE = 0.005
+    LEARNING_RATE = 0.05
     for i in range(0, len(training_subset), BATCH_SIZE):
         batch = training_subset[i:min(i + BATCH_SIZE, len(training_subset))]
         MODEL.backward_minibatch(batch, LEARNING_RATE)
