@@ -241,6 +241,8 @@ PATIENCE = 200
 
 print TRAINING_SUBSET_SIZE
 
+print "Epoch\tTraining Cost Function\tTest Cost Function"
+
 best_rate = np.inf
 best_model = None
 for epoch in range(MAX_EPOCHS):
@@ -263,11 +265,11 @@ for epoch in range(MAX_EPOCHS):
         batch = training_subset[i:min(i + BATCH_SIZE, len(training_subset))]
         MODEL.backward_minibatch(batch, LEARNING_RATE)
 
-    # Evaluate accuracy against training data
+    # Evaluate accuracy against training data and test data
     training_rate = evaluate(MODEL, training_subset)
-    # test_rate = evaluate(MODEL, TEST_DATA)
+    test_rate = evaluate(MODEL, TEST_DATA)
 
-    print epoch, "training:", training_rate,
+    print epoch, training_rate, test_rate,
 
     # If it's the best one so far, store it
     if training_rate < best_rate:
