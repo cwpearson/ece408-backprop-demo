@@ -114,7 +114,7 @@ class Model(object):
     def dLdb2(self, x, y):
         return self.dLdf(x, y) * self.dfdb2(x)
 
-    def dz2dw2(self, x): # how z2 changes with a row of w2
+    def dz2dw2(self, x):  # how z2 changes with a row of w2
         return np.sum(self.a1(x))
 
     def da2dw2(self, x):
