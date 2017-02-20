@@ -8,8 +8,12 @@
 
 Depending on your configuration, you could try
 
-    pip install --user scikit-learn numpy
+    pip install --user scikit-learn numpy matplotlib
 
 # Running
 
     python network.py
+
+# Other Stuff
+
+`network2.py` has a different network implementation with a bug somewhere.
